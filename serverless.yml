@@ -1,0 +1,120 @@
+# "org" ensures this Service is used with the correct Serverless Framework Access Key.
+# "service" is the name of this project. This will also be added to your AWS resource names.
+service: grupparbete-bonzai-api
+
+provider:
+  name: aws
+  runtime: nodejs24.x
+  architecture: arm64
+  region: eu-north-1
+  iam:
+    role:
+      ${file(./config.yml):role}
+      # statements:
+      #   - Effect: Allow
+      #     Action:
+      #       - dynamodb:GetItem
+      #       - dynamodb:PutItem
+      #       - dynamodb:UpdateItem
+      #       - dynamodb:DeleteItem
+      #       - dynamodb:Query
+      #       - dynamodb:Scan
+      #       - dynamodb:TransactWriteItems
+      #     ##Resource:
+      #       ##- !GetAtt BonzaiTable.Arn
+
+functions:
+  ## ROOMS
+  getRooms:
+    handler: functions/rooms/getRooms/index.handler
+    events:
+      - httpApi:
+          path: /rooms
+          method: get
+  getRoomById:
+    handler: functions/rooms/getRoomById/index.handler
+    events:
+      - httpApi:
+          path: /rooms/{id}
+          method: get
+  getAvailableRooms:
+    handler: functions/rooms/getAvailableRooms/index.handler
+    events:
+      - httpApi:
+          path: /rooms/available
+          method: get
+
+  ## BOOKINGS
+  createBooking:
+    handler: functions/bookings/createBooking/index.handler
+    events:
+      - httpApi:
+          path: /bookings
+          method: post
+  getBookings:
+    handler: functions/bookings/getBookings/index.handler
+    events:
+      - httpApi:
+          path: /bookings
+          method: get
+  getBookingById:
+    handler: functions/bookings/getBookingById/index.handler
+    events:
+      - httpApi:
+          path: /bookings/{id}
+          method: get
+  deleteBooking:
+    handler: functions/bookings/deleteBooking/index.handler
+    events:
+      - httpApi:
+          path: /bookings/{id}
+          method: delete
+  putUpdateBooking:
+    handler: functions/bookings/putUpdateBooking/index.handler
+    events:
+      - httpApi:
+          path: /bookings/{id}
+          method: put
+
+  ## AUTH
+  register:
+    handler: functions/auth/register/index.handler
+    events:
+      - httpApi:
+          path: /auth/register
+          method: post
+  login:
+    handler: functions/auth/login/index.handler
+    events:
+      - httpApi:
+          path: /auth/login
+          method: post
+
+resources:
+  Resources:
+    BonzaiTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: bonzai-table
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+          - AttributeName: bookingId # gsi
+            AttributeType: S # gsi
+
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+
+        GlobalSecondaryIndexes: # gsi
+          - IndexName: BookingIdIndex
+            KeySchema:
+              - AttributeName: bookingId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
